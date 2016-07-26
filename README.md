@@ -13,6 +13,12 @@ If you use this software in your research, please consider citing it like:
 
 Tjeerd Fokkens, Andreas Fognini, Val Zwiller The Quantum Tomography Project. Available at https://github.com/afognini/Tomography/.
 
+# Authors, Copyright, License
+
+Authors: Tjeerd Fokkens, Andreas Fognini, Val Zwiller
+Copyright (c) 2016
+Released under the terms of the MIT License (see file LICENSE)
+
 # Notes
 
 Please note that this library needs python3.x
