@@ -11,7 +11,7 @@ Read the file Tomography.pdf. The documentation also be found in docs/_build/ bo
 
 If you use this software in your research, please consider citing it like:
 
-Tjeerd Fokkens, Andreas Fognini, Val Zwiller The Quantum Tomography Project. Available at https://github.com/afognini/Tomography/.
+Tjeerd Fokkens, Andreas Fognini, Val Zwiller Optical Quantum Tomography Code. Available at https://github.com/afognini/Tomography/.
 
 # Authors, Copyright, License
 
