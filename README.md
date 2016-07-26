@@ -16,7 +16,9 @@ Tjeerd Fokkens, Andreas Fognini, Val Zwiller The Quantum Tomography Project. Ava
 # Authors, Copyright, License
 
 Authors: Tjeerd Fokkens, Andreas Fognini, Val Zwiller
-Copyright (c) 2016
+
+Copyright (c) 2016 TU Delft, Institute for Molecular Electronics and Devices
+
 Released under the terms of the MIT License (see file LICENSE)
 
 # Notes
