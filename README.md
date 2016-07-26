@@ -7,3 +7,6 @@ Tomography is a library to calculate the density matrix of an optical two qubit 
 
 Read the file Tomography.pdf. The documentation also be found in docs/_build/ both in html and pdf format. 
 
+# Notes
+
+Please note that this library needs python3.x
