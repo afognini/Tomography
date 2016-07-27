@@ -163,6 +163,7 @@ if "%1" == "latexpdf" (
 	make all-pdf
 	cd %~dp0
 	echo.
+        echo This is a TEST
 	echo.Build finished; the PDF files are in %BUILDDIR%/latex.
 	goto end
 )
