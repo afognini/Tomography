@@ -5,7 +5,7 @@ Tomography is an easy-to-use Python library to calculate the density matrix of a
 
 # Full Documentation
 
-Read the file Tomography.pdf. The documentation also be found in docs/_build/ both in html and pdf format. 
+Read the file Tomography.pdf. The documentation is also available in docs/_build/ both as html and pdf format. 
 
 # How to Cite
 
