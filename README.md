@@ -1,6 +1,6 @@
 # Tomography
 
-Tomography is a Python library to calculate the density matrix of an optical two qubit system and find the closest pure state describing it.
+Tomography is an easy-to-use Python library to calculate the density matrix of an optical two qubit system and find the closest pure state describing it.
 
 
 # Full Documentation
