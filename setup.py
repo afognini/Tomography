@@ -21,7 +21,7 @@ setup(
     py_modules =["Tomography"],
     setup_requires=[],
     install_requires=['numpy','scipy>=0.17'],
-    long_description=read('README.txt'),
+    long_description=read('README.md'),
     #test_suite="tests",
     classifiers=[
         "Development Status :: 3 - Alpha",
