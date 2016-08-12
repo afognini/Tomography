@@ -1,0 +1,65 @@
+\begin{theindex}
+\def\bigletter#1{{\Large\sffamily#1}\nopagebreak\vspace{1mm}}
+
+  \bigletter B
+  \item basis\_str\_to\_object() (Tomography.DensityMatrix method), \hyperpage{9}
+
+  \indexspace
+  \bigletter C
+  \item collect\_results() (Tomography.Errorize method), \hyperpage{13}
+  \item complex\_std\_dev() (Tomography.Errorize method), \hyperpage{13}
+  \item concurrence() (Tomography.DensityMatrix method), \hyperpage{10}
+  \item concurrence() (Tomography.Errorize method), \hyperpage{13}
+  \item construct\_b\_matrix() (Tomography.DensityMatrix method), \hyperpage{10}
+
+  \indexspace
+  \bigletter D
+  \item DensityMatrix (class in Tomography), \hyperpage{9}
+
+  \indexspace
+  \bigletter E
+  \item entropy\_neumann() (Tomography.DensityMatrix method), \hyperpage{10}
+  \item Errorize (class in Tomography), \hyperpage{13}
+
+  \indexspace
+  \bigletter F
+  \item fidelity() (Tomography.DensityMatrix method), \hyperpage{10}
+  \item fidelity\_max() (Tomography.DensityMatrix method), \hyperpage{10}
+  \item fidelity\_max() (Tomography.Errorize method), \hyperpage{13}
+  \item find\_closest\_pure\_state() (Tomography.DensityMatrix method), \hyperpage{11}
+  \item fun() (Tomography.DensityMatrix method), \hyperpage{11}
+
+  \indexspace
+  \bigletter M
+  \item multiprocessing\_simulate() (Tomography.Errorize method), \hyperpage{13}
+
+  \indexspace
+  \bigletter O
+  \item opt\_pure\_state() (Tomography.DensityMatrix method), \hyperpage{11}
+
+  \indexspace
+  \bigletter P
+  \item purity() (Tomography.DensityMatrix method), \hyperpage{11}
+  \item purity() (Tomography.Errorize method), \hyperpage{14}
+
+  \indexspace
+  \bigletter R
+  \item rho() (Tomography.DensityMatrix method), \hyperpage{11}
+  \item rho() (Tomography.Errorize method), \hyperpage{14}
+  \item rho\_max\_likelihood() (Tomography.DensityMatrix method), \hyperpage{12}
+  \item rho\_max\_likelihood() (Tomography.Errorize method), \hyperpage{14}
+  \item rho\_phys() (Tomography.DensityMatrix method), \hyperpage{12}
+  \item rho\_state() (Tomography.DensityMatrix method), \hyperpage{12}
+  \item rho\_state\_optimized() (Tomography.DensityMatrix method), \hyperpage{12}
+
+  \indexspace
+  \bigletter S
+  \item sim() (Tomography.Errorize method), \hyperpage{14}
+  \item sim\_counts() (Tomography.Errorize method), \hyperpage{14}
+
+  \indexspace
+  \bigletter T
+  \item test\_gamma() (Tomography.DensityMatrix method), \hyperpage{13}
+  \item Tomography (module), \hyperpage{9}
+
+\end{theindex}

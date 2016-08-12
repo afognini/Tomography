@@ -17,7 +17,7 @@ class DensityMatrix(object):
 
 	The measurements need to be performed in horizontal (H) or vertical (V),
 	circular right (R) or left (L), and diagonal (D) or antidiagonal (A) projections.
-	
+
 	We use the following vector representation:
 		* :math:`H=\\begin{pmatrix}1 \\\ 0 \end{pmatrix}`
 		* :math:`V=\\begin{pmatrix}0 \\\ 1 \end{pmatrix}`
@@ -150,6 +150,7 @@ class DensityMatrix(object):
 
 		:return: The density matrix computed by the maximum likelihood approach.
 		:rtype: numpy array
+
 		Example:
 			If the basis in __init__(basis) was chosen as:
 
@@ -163,6 +164,7 @@ class DensityMatrix(object):
 
 				state = 1/sqrt(2)*(self.PSI[0]+1j*self.PSI[2])
 		"""
+
 		proj = np.einsum('ij,j->i',np.conj(self.PSI),state)
 		projProb = np.conj(proj) * proj
 
@@ -304,6 +306,16 @@ class DensityMatrix(object):
 		con = sortedEigValues[3]-sortedEigValues[2]-sortedEigValues[1]-sortedEigValues[0]
 		return np.max([con,0])
 
+	def purity(self, rho):
+		"""Compute the purity of the density matrix.
+
+		:param numpy_array rho: Density matrix
+
+		:return: The density matrix's purity :math:`\mathrm{Tr}\\rho^2`
+		:rtype: complex
+		"""
+		return np.trace(np.dot(rho,rho))
+
 	def fidelity(self, m, n):
 		"""Compute the fidelity between the density matrces m and n.
 
@@ -366,7 +378,7 @@ class DensityMatrix(object):
 		:rtype: numpy array
 
 		"""
-		SPAN_RHO =[]		
+		SPAN_RHO =[]
 
 		for basis_element in basis:
 			basis_branch1 = self.basis_str_to_object(basis_element[0])
@@ -376,26 +388,34 @@ class DensityMatrix(object):
 		x0_array =np.ones(8)
 
 		c_estimates =minimize(self.opt_pure_state, x0 = x0_array, args = (rho, SPAN_RHO), method='POWELL', tol=1e-4)
-		
+
 		#state = np.dot(c_estimates, SPAN_RHO)
 		coeff=[]
 		for i in range(4):
 			coeff.append(c_estimates.x[2*i]+1j*c_estimates.x[2*i+1])
 
 		state_norm =coeff/np.sqrt(np.vdot(coeff,coeff))
-		
+
 		#convention: first basis elemnt has no imaginary part
 		theta =np.angle(state_norm[0])
 		state_norm_conv = np.exp(-1j*theta)*state_norm
 		return state_norm_conv
 
 	def opt_pure_state(self, coeff_array, rho, basis):
+		"""Helper function for *self.find_closest_pure_state*.
 
+		:param numpy_array coeff_array: Coefficient array, to be optimized
+		:param numpy_array rho: Density matrix
+		:param basis: The basis state from which the pure state is constructed, e.g. ["HH", "HV", "VH", "VV"]
+
+		:return: 1-fidelity, such that the minimizing function finds the maximum of the fidelity.
+		:rtype: complex
+		"""
 		coeff =[]
 
 		for i in range(4):
 			coeff.append(coeff_array[2*i]+1j*coeff_array[2*i+1])
-		
+
 		coeff = coeff/np.sqrt(np.vdot(coeff,coeff))
 
 		state =np.dot(coeff, basis)
@@ -403,7 +423,7 @@ class DensityMatrix(object):
 		sigma =self.rho_state(np.array(state))
 
 		F = np.real(self.fidelity(rho, sigma))
-		
+
 		return 1-F
 
 	def rho_max_likelihood(self,rho, corr_counts):
@@ -566,7 +586,9 @@ class Errorize(DensityMatrix):
         			array with raw density matrices and
         		self.rhosrec
         			array with maximum likelihood approximated matrices.
+				
         		Note: 'rhosrec' stands for rho reconstructed.
+
 		:rtype: numpy matrices
         """
 
@@ -576,7 +598,7 @@ class Errorize(DensityMatrix):
         pool = Pool()
 
         for i in range(nbr_of_cores):
-            pool.apply_async(self.sim, [n_cycles_per_core, self.basis,], callback = self.collect_results)
+            pool.apply_async(self.sim, [n_cycles_per_core, self.basis], callback = self.collect_results)
 
         pool.close()
         pool.join()
@@ -626,6 +648,21 @@ class Errorize(DensityMatrix):
         std_dev = self.complex_std_dev(c)
         return std_dev
 
+    def purity(self):
+        """Compute the standard deviation of the density matrix's purity.
+
+        :return: Its standard deviation.
+
+        """
+        d = DensityMatrix(self.basis)
+        c = []
+
+        for r in self.rhosrec:
+            c.append(d.purity(r))
+
+        std_dev = self.complex_std_dev(c)
+        return std_dev
+
     def rho_max_likelihood(self):
         """Compute the standard deviation of the density matrix reconstructed by the maximum likelihood method.
 
@@ -666,7 +703,7 @@ if __name__ == "__main__":
 	closest_state_basis =["HH","HV","VH","VV"]
 	closest_state = dm.find_closest_pure_state(rho_recon, basis=closest_state_basis)
 	rho_state_closest =dm.rho_state(closest_state)
-	
+
 	s = str()
 	for i in range(3):
 		s = s + "\t"+ str(closest_state[i]) + "\t|"+closest_state_basis[i] + "> + \n"
@@ -706,10 +743,11 @@ if __name__ == "__main__":
 	fidelity    = dm.fidelity_max(rho_recon)
 	print("Fidelity: " +    str(fidelity)+"\n")
 
-	
+
 	#Calculate Error
 	fidelity    = dm.fidelity_max(rho_recon)
 	concurrence = dm.concurrence(rho_recon)
+	purity		= dm.purity(rho_recon)
 
 	#Compute errors
 	err = Errorize(basis, cnts)
@@ -722,7 +760,7 @@ if __name__ == "__main__":
 
 	fid_std = np.around(err.fidelity_max(),decimals=5)
 	con_std = np.around(err.concurrence(), decimals=5)
-
+	pur_std = np.around(err.purity(), decimals=5)
 	print("Fidelity: " +    str(fidelity)    + " +- " + str(fid_std))
 	print("Concurrence: " + str(concurrence) + " +- " + str(con_std))
-	
+	print("Purity: " + str(purity) + " +- " + str(pur_std))

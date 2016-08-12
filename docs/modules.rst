@@ -1,8 +1,9 @@
 Modules Description
-============
+=========================
 
 In the following the Tomography module is described.
-It consists of two classes:
+It consists of two classes::
+
 	* DensityMatrix
 	* Errorize
 

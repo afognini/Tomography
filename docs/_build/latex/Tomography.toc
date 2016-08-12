@@ -6,7 +6,7 @@
 \contentsline {chapter}{\numberline {2}Installation}{7}{chapter.2}
 \contentsline {chapter}{\numberline {3}Modules Description}{9}{chapter.3}
 \contentsline {section}{\numberline {3.1}Tomography module}{9}{section.3.1}
-\contentsline {paragraph}{Note, the maximally entangled state is not computed. Function from: http://dx.doi.org/10.1103/PhysRevA.66.022307}{13}{paragraph*.24}
+\contentsline {paragraph}{Note, the maximally entangled state is not computed. Function from: http://dx.doi.org/10.1103/PhysRevA.66.022307}{13}{paragraph*.25}
 \contentsline {chapter}{\numberline {4}License}{15}{chapter.4}
 \contentsline {chapter}{\numberline {5}Indices and tables}{17}{chapter.5}
-\contentsline {chapter}{Index}{19}{section*.30}
+\contentsline {chapter}{Index}{19}{section*.32}
