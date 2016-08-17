@@ -112,11 +112,32 @@ class DensityMatrix(object):
 		#Trace of M
 		self.TrM = np.einsum('...ii',self.M)
 
+	def state(self,string):
+		"""Compute state from string.
+
+		:param state: Two letter string.
+
+		:return: State vector.
+
+		Example:
+			.. code-block:: python
+
+				state = dm.state("HH")
+
+			will be: :math:`state=\\begin{pmatrix}1 \\\ 0 \end{pmatrix}\otimes\\begin{pmatrix}1 \\\ 0 \end{pmatrix}`
+		"""
+		if len(string)!=2:
+			raise ValueError("String not two characters long")
+
+		basis_branch1 = self.basis_str_to_object(string[0])
+		basis_branch2 = self.basis_str_to_object(string[1])
+		return np.hstack(np.outer(basis_branch1,basis_branch2))
+
 	def rho_state(self, state):
 		"""Compute the density matrix of a pure state.
-		The state is described by :math:`\psi_\\nu` elements.
+		The state is described either by linear superpositions of *self.state()* or :math:`\psi_\\nu` tensor elements.
 
-		:param state: The state expressed as a linear combination of :math:`\psi_\\nu` elements.
+		:param state: The state expressed as a linear combination of state tensor elements.
 
 		:return: The corresponding density matrix.
 
@@ -133,7 +154,17 @@ class DensityMatrix(object):
 
 			.. code-block:: python
 
-				state = 1/sqrt(2)*(self.PSI[0]+1j*self.PSI[2])
+				HH=self.state("HH")
+				VV=self.state("VV")
+
+				state=1/sqrt(2)*(HH+1j*VV)
+
+
+			or as:
+
+			.. code-block:: python
+
+				state=1/sqrt(2)*(self.PSI[0]+1j*self.PSI[2])
 
 		"""
 
@@ -144,9 +175,9 @@ class DensityMatrix(object):
 	def rho_state_optimized(self, state):
 		"""Compute the density matrix of a pure state based on the maximum likelihood approach.
 		Aim: To test the maximum likelihood function.
-		The state is described by :math:`\psi_\\nu` elements.
+		The state is described by linear superpositions of *self.state()* or :math:`\psi_\\nu` tensor elements.
 
-		:param state: The state expressed as a linear combination of :math:`\psi_\\nu` elements.
+		:param state: The state expressed as a linear combination of state tensor elements.
 
 		:return: The density matrix computed by the maximum likelihood approach.
 		:rtype: numpy array
@@ -158,11 +189,28 @@ class DensityMatrix(object):
 
 				basis =	['HH', 'HV','VV','VH','RH','RV','DV','DH','DR','DD','RD','HD','VD','VL','HL','RL']
 
-			The Bell state: :math:`\\frac{1}{\\sqrt{2}}(\\lvert HH \\rangle + i \\lvert VV \\rangle)` is described as:
+			The Bell state: :math:`\\frac{1}{\\sqrt{2}}(\\lvert HH \\rangle + i \\lvert VV \\rangle)`
+
+			is described in python code with above basis as
+
+			.. code-block:: python
+
+				HH=self.state("HH")
+				VV=self.state("VV")
+
+				state=1/sqrt(2)*(HH+1j*VV)
+
+				dm=DensityMatrix(basis)
+				dm.rho_state_optimized(state)
+
+			or as:
 
 			.. code-block:: python
 
 				state = 1/sqrt(2)*(self.PSI[0]+1j*self.PSI[2])
+
+				dm = DensityMatrix(basis)
+				dm.rho_state_optimized(state)
 		"""
 
 		proj = np.einsum('ij,j->i',np.conj(self.PSI),state)
@@ -265,6 +313,8 @@ class DensityMatrix(object):
 			return self.D
 		elif pol == "A":
 			return self.A
+
+		raise ValueError("Value not of the form H,V,R,L,A,D")
 
 	def entropy_neumann(self, rho):
 		"""Compute the von Neumann entropy of the density matrix.
@@ -586,7 +636,7 @@ class Errorize(DensityMatrix):
         			array with raw density matrices and
         		self.rhosrec
         			array with maximum likelihood approximated matrices.
-				
+
         		Note: 'rhosrec' stands for rho reconstructed.
 
 		:rtype: numpy matrices
@@ -719,20 +769,24 @@ if __name__ == "__main__":
 
 	print("Rho State closest: \n" 				+ str(np.around(rho_state_closest, decimals =round_digits)) + "\n")
 
-	print("Rho of Bell state HH + iVV: \n" 		+ str(np.around(dm.rho_state(state= 1/np.sqrt(2)*(dm.PSI[0]+1j*dm.PSI[2])),decimals=round_digits))+"\n")
+	#Define states HH and VV
+	HH=dm.state("HH")
+	VV=dm.state("VV")
 
-	print("Entropy of HH + iVV:" 				+ str(np.around(dm.entropy_neumann(dm.rho_state(state= 1/np.sqrt(2)*(dm.PSI[0]+1j*dm.PSI[2]))),decimals=round_digits))+"\n")
+	print("Rho of Bell state HH + iVV: \n" 		+ str(np.around(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV)),decimals=round_digits))+"\n")
 
-	print("Concurrence of HH + iVV:" 			+ str(np.around(dm.concurrence(dm.rho_state(state= 1/np.sqrt(2.0)*(dm.PSI[0]+1.0j*dm.PSI[2]))),decimals=round_digits))+"\n")
-	print("Concurrence of HH: " 				+ str(np.around(dm.concurrence(dm.rho_state(state= dm.PSI[0] ) ),decimals=round_digits)) +"\n")
+	print("Entropy of HH + iVV:" 				+ str(np.around(dm.entropy_neumann(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV))),decimals=round_digits))+"\n")
 
-	print("Density matrix of HH: \n" 			+ str(np.around(dm.rho_state(state= dm.PSI[0] ) ,decimals=round_digits)) +"\n")
+	print("Concurrence of HH + iVV:" 			+ str(np.around(dm.concurrence(dm.rho_state(state= 1/np.sqrt(2.0)*(HH+1.0j*VV))),decimals=round_digits))+"\n")
+	print("Concurrence of HH: " 				+ str(np.around(dm.concurrence(dm.rho_state(state= HH ) ),decimals=round_digits)) +"\n")
 
-	print("Optimized Density matrix of HH: \n" 	+ str(np.around(dm.rho_state_optimized(state= dm.PSI[0] ),decimals=round_digits )) +"\n")
+	print("Density matrix of HH: \n" 			+ str(np.around(dm.rho_state(state= HH ) ,decimals=round_digits)) +"\n")
 
-	print("Fidelity of HH + iVV:" 	    		+ str(np.around(dm.fidelity_max(dm.rho_state(state= 1/np.sqrt(2)*(dm.PSI[0]+1j*dm.PSI[2]))),decimals=round_digits))+"\n")
+	print("Optimized Density matrix of HH: \n" 	+ str(np.around(dm.rho_state_optimized(state= HH ),decimals=round_digits )) +"\n")
 
-	print("Fidelity of HH: " 	    			+ str(np.around(dm.fidelity_max(dm.rho_state(state= (dm.PSI[0]))),decimals=round_digits))+"\n")
+	print("Fidelity of HH + iVV:" 	    		+ str(np.around(dm.fidelity_max(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV))),decimals=round_digits))+"\n")
+
+	print("Fidelity of HH: " 	    			+ str(np.around(dm.fidelity_max(dm.rho_state(state= HH)),decimals=round_digits))+"\n")
 
 	eigValues, eigVecors = np.linalg.eig(rho_recon)
 

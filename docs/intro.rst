@@ -11,7 +11,7 @@ To reconstruct the density matrix of a two qubit photonic system we need to perf
 A valid basis set for the reconstruction is for example:
 
 .. code-block:: python
-			
+
 	basis =  ["HH","HV","VV","VH","HD","HR","VD","VR","DH","DV","DD","DR","RH","RV","RD","RR"]
 
 In this example the first coincidence measurement is performed for the basis element "HH". This means that for both photons, the horizontal component of the polarization is measured.
@@ -19,7 +19,7 @@ In this example the first coincidence measurement is performed for the basis ele
 In the second coincidence measurement, "HV", we measure the horizontal component of the first photon, and the vertical polarization component of the second one.
 
 Usage of the library
-===============
+==============================
 Once all the coincidence counts have been collected the density matrix describing the quantum system can be reconstructed.
 
 .. code-block:: python
@@ -45,19 +45,19 @@ We get the reconstructed positive semidefinite density matrix by evoking:
 
 .. code-block:: python
 
-	rho_recon = dm.rho_max_likelihood(rho, cnts)
+	rho_recon=dm.rho_max_likelihood(rho, cnts)
 
 The library can also compute some quantum measures on the density matrix like the concurrence:
 
 .. code-block:: python
-	
-	concurrence = dm.concurrence(rho_recon)
+
+	concurrence=dm.concurrence(rho_recon)
 
 or the fidelity:
 
 .. code-block:: python
-	
-	f = dm.fidelity_max(rho_recon)
+
+	f=dm.fidelity_max(rho_recon)
 
 The fidelity is calculated here to a maximally entangled state. We used the algorithm described in http://dx.doi.org/10.1103/PhysRevA.66.022307.
 
@@ -78,11 +78,22 @@ The following code block is an example how to reconstruct a pure state with this
 
 	print("Closest State: \n" + s + "\n")
 
+The density matrix from any pure state can also easily be constructed.
+For example from the following Bell state: :math:`\frac{1}{\sqrt{2}}(\lvert HH \rangle + i \lvert VV \rangle)`.
+
+.. code-block:: python
+
+	HH =dm.state("HH")
+	VV =dm.state("VV")
+
+	print(dm.rho_state(state=1/np.sqrt(2)*(HH+1j*VV)))
+
+
 Error estimation
 ===================
 
 The error estimation is performed based on a Monte Carlo simulation. Each correlation count is assumed to be subjected to counting statistics. Thus, the measured number :math:`N` of correlation counts will be replaced in each step of the simulation with a draw from a normal distribution with standard deviation :math:`\sigma=\sqrt{N}` and mean :math:`\mu=N`.
-In each simulation step a new density matrix is calculated. 
+In each simulation step a new density matrix is calculated.
 Based on this set of simulated density matrices the standard deviation can be computed to estimate the error.
 
 To get the error of the above examples do:
@@ -105,8 +116,8 @@ To get the error of the above examples do:
 	print("Uncertainty of rho: \n" + str(np.around(rho_err, decimals =round_digits)) + "\n")
 
 	#Uncertainty of fidelity and concurrence estimates
-	fid_err = err.fidelity_max()
-	con_err = err.concurrence()
+	fid_err=err.fidelity_max()
+	con_err=err.concurrence()
 
 	print("fid_err: \n" + str(fid_err) + "\n")
 	print("con_err: \n" + str(con_err) + "\n")

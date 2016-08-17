@@ -374,7 +374,7 @@ latex_use_index = False
 
 
 # If false, no modindex is generated.
-latex_use_modindex = False
+latex_domain_indices = False
 
 # If false, no coverpage is generated.
 #pdf_use_coverpage = True
