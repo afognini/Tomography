@@ -1,3 +1,7 @@
-# To compile the pdf documentation do:
+# To compile the documentation as pdf:
 
 make latexpdf
+
+# To compile the documentation as html:
+
+make html
