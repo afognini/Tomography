@@ -7,11 +7,11 @@ Before you start the installation of the library it is advised that you have ins
 To install the library open a terminal and navigate into the Tomography folder.
 Then install it either by::
                 
-	python install setup.py
+	python setup.py install
 
 Or by::
                 
-	python3 install setup.py
+	python3 setup.py install
 
 Depending on your python installation. Please note that this library needs python3.x .
 
