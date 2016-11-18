@@ -546,190 +546,206 @@ class DensityMatrix(object):
 		return TdagT/norm
 
 class Errorize(DensityMatrix):
-    """Compute +- uncertainty of the density matrix.
-    A Monte Carlo simulation is performed based on counting statistics.
+	"""Compute +- uncertainty of the density matrix.
+	A Monte Carlo simulation is performed based on counting statistics.
 
-    :param array basis: Basis of measurements
-    :param array cnts: Correlation counts of the measurements
-
-
-    """
-
-    def __init__(self, basis, cnts):
-        """Initialize Errorize class.
-
-        :param array basis: Basis of measurements
-        :param array cnts: Correlation counts of the measurements
-
-        Example:
-
-            .. code-block:: python
-
-                cnts	= np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586])
-                basis   = ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
-
-            Data from: D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
-        """
-        self.cnts = cnts
-        self.basis = basis
-
-    def sim_counts(self, counts):
-        """Simulates counting statistics noise.
-
-        :param numpy_array counts: Measured counts.
-
-        :return: Array of simulated counting statistics values.
-        :rtype: numpy array
-        """
-        simc = np.random.normal(counts,np.sqrt(counts))
-        return simc
+	:param array basis: Basis of measurements
+	:param array cnts: Correlation counts of the measurements
 
 
-    def collect_results(self, result):
-        """Helper function for multicore processing.
-        """
-        rho, rhorec = result['rhos'], result['rhosrec']
-        for r in rho:
-            self.rhos.append(r)
-        for r in rhorec:
-            self.rhosrec.append(r)
+	"""
 
-    def sim(self, n_cycles_per_core, basis):
-        """Perform Monte Carlo simulation on one CPU.
+	def __init__(self, basis, cnts):
+		"""Initialize Errorize class.
 
-        :param float n_cycles_per_core: Number of simulations per core.
+		:param array basis: Basis of measurements
+		:param array cnts: Correlation counts of the measurements
 
-        :return:
-            a dictionary
-                 {'rhos': self.rhos, 'rhosrec': self.rhosrec} where
-            self.rhos
-                Array with raw density matrices.
-            self.rhosrec
-                Array with maximum likelihood approximated matrices.
-        :rtype: dict
-        """
-        possibleMatrices = []
-        rhos = []
-        rhosrec = []
+		Example:
 
-        for i in range(n_cycles_per_core):
-            possibleCnts = self.sim_counts(self.cnts)
+			.. code-block:: python
 
-            possibleMatrices.append(DensityMatrix(basis))
-            possibleMatrices[i].cnts = possibleCnts
+				cnts	= np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586])
+				basis   = ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
 
-        for m in possibleMatrices:
-            rho = m.rho(m.cnts)
-            rhos.append(rho)
-            rhosrec.append(m.rho_max_likelihood(rho ,m.cnts))
+			Data from: D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
+		"""
+		self.cnts = cnts
+		self.basis = basis
 
-        return {'rhos': rhos, 'rhosrec':rhosrec}
+	def sim_counts(self, counts):
+		"""Simulates counting statistics noise.
 
-    def multiprocessing_simulate(self, n_cycles_per_core  = 10, nbr_of_cores = 8):
-        """Perform Monte Carlo simulation parallel on several CPU cores. Each core will call function self.sim().
+		:param numpy_array counts: Measured counts.
 
-        :param float n_cycles_per_core:  Number of simulations per core.
-        :param float nbr_of_cores: Number of CPUs
-        :return:
-        	self.rhos, self.rhosrec
-        		self.rhos
-        			array with raw density matrices and
-        		self.rhosrec
-        			array with maximum likelihood approximated matrices.
+		:return: Array of simulated counting statistics values.
+		:rtype: numpy array
+		"""
+		simc = np.random.normal(counts,np.sqrt(counts))
+		return simc
 
-        		Note: 'rhosrec' stands for rho reconstructed.
+
+	def collect_results(self, result):
+		"""Helper function for multicore processing.
+		"""
+		rho, rhorec = result['rhos'], result['rhosrec']
+		for r in rho:
+			self.rhos.append(r)
+		for r in rhorec:
+			self.rhosrec.append(r)
+
+	def sim(self, n_cycles_per_core, basis):
+		"""Perform Monte Carlo simulation on one CPU.
+
+		:param float n_cycles_per_core: Number of simulations per core.
+
+		:return:
+			a dictionary
+				{'rhos': self.rhos, 'rhosrec': self.rhosrec} where
+			self.rhos
+				Array with raw density matrices.
+			self.rhosrec
+				Array with maximum likelihood approximated matrices.
+		:rtype: dict
+		"""
+		possibleMatrices = []
+		rhos = []
+		rhosrec = []
+
+		for i in range(n_cycles_per_core):
+			possibleCnts = self.sim_counts(self.cnts)
+
+			possibleMatrices.append(DensityMatrix(basis))
+			possibleMatrices[i].cnts = possibleCnts
+
+		for m in possibleMatrices:
+			rho = m.rho(m.cnts)
+			rhos.append(rho)
+			rhosrec.append(m.rho_max_likelihood(rho ,m.cnts))
+
+		return {'rhos': rhos, 'rhosrec':rhosrec}
+
+	def multiprocessing_simulate(self, n_cycles_per_core  = 10, nbr_of_cores = 8):
+		"""Perform Monte Carlo simulation parallel on several CPU cores. Each core will call function self.sim().
+
+		:param float n_cycles_per_core:  Number of simulations per core.
+		:param float nbr_of_cores: Number of CPUs
+		:return:
+			self.rhos, self.rhosrec
+				self.rhos
+					array with raw density matrices and
+				self.rhosrec
+					array with maximum likelihood approximated matrices.
+
+				Note: 'rhosrec' stands for rho reconstructed.
 
 		:rtype: numpy matrices
-        """
+		"""
 
-        self.rhos = []
-        self.rhosrec = []
+		self.rhos = []
+		self.rhosrec = []
 
-        pool = Pool()
+		pool = Pool()
 
-        for i in range(nbr_of_cores):
-            pool.apply_async(self.sim, [n_cycles_per_core, self.basis], callback = self.collect_results)
+		for i in range(nbr_of_cores):
+			pool.apply_async(self.sim, [n_cycles_per_core, self.basis], callback = self.collect_results)
 
-        pool.close()
-        pool.join()
+		pool.close()
+		pool.join()
 
-        return self.rhos, self.rhosrec
+		return self.rhos, self.rhosrec
 
-    def complex_std_dev(self, matrices):
-        """Compute the standard deviation for the real and complex part of matrices separately.
+	def complex_std_dev(self, matrices):
+		"""Compute the standard deviation for the real and complex part of matrices separately.
 
-        :param numpy_array matrices: An array filled with matrices.
+		:param numpy_array matrices: An array filled with matrices.
 
-        :return: Standard deviation of the real and complex part for every matrix element.
-        :rtype: complex
-        """
-        return np.std(np.real(matrices), axis=0) + 1j*np.std(np.imag(matrices), axis=0)
+		:return: Standard deviation of the real and complex part for every matrix element.
+		:rtype: complex
+		"""
+		return np.std(np.real(matrices), axis=0) + 1j*np.std(np.imag(matrices), axis=0)
 
-    def fidelity_max(self):
-        """Compute the standard deviation of the maximal fidelity of :math:`\\rho` to a maximally entangled state.
+	def fidelity_max(self):
+		"""Compute the standard deviation of the maximal fidelity of :math:`\\rho` to a maximally entangled state.
 
-        :returns: Its standard deviation.
+		:returns: Its standard deviation.
 
-        .. rubric:: Note, the maximally entangled state is not computed.
-        	Function from: http://dx.doi.org/10.1103/PhysRevA.66.022307
+		.. rubric:: Note, the maximally entangled state is not computed.
+			Function from: http://dx.doi.org/10.1103/PhysRevA.66.022307
 
-        """
-        d = DensityMatrix(self.basis)
-        fidelities = []
+		"""
+		d = DensityMatrix(self.basis)
+		fidelities = []
 
-        for r in self.rhosrec:
-            fidelities.append(d.fidelity_max(r))
+		for r in self.rhosrec:
+			fidelities.append(d.fidelity_max(r))
 
-        std_dev = self.complex_std_dev(fidelities)
-        return std_dev
+		std_dev = self.complex_std_dev(fidelities)
+		return std_dev
 
-    def concurrence(self):
-        """Compute the standard deviation of the concurrence of density matrix.
+	def concurrence(self):
+		"""Compute the standard deviation of the concurrence of density matrix.
 
-        :return: Its standard deviation.
+		:return: Its standard deviation.
 
-        """
-        d = DensityMatrix(self.basis)
-        c = []
+		"""
+		d = DensityMatrix(self.basis)
+		c = []
 
-        for r in self.rhosrec:
-            c.append(d.concurrence(r))
+		for r in self.rhosrec:
+			c.append(d.concurrence(r))
 
-        std_dev = self.complex_std_dev(c)
-        return std_dev
+		std_dev = self.complex_std_dev(c)
+		return std_dev
 
-    def purity(self):
-        """Compute the standard deviation of the density matrix's purity.
+	def purity(self):
+		"""Compute the standard deviation of the density matrix's purity.
 
-        :return: Its standard deviation.
+		:return: Its standard deviation.
 
-        """
-        d = DensityMatrix(self.basis)
-        c = []
+		"""
+		d = DensityMatrix(self.basis)
+		c = []
 
-        for r in self.rhosrec:
-            c.append(d.purity(r))
+		for r in self.rhosrec:
+			c.append(d.purity(r))
 
-        std_dev = self.complex_std_dev(c)
-        return std_dev
+		std_dev = self.complex_std_dev(c)
+		return std_dev
 
-    def rho_max_likelihood(self):
-        """Compute the standard deviation of the density matrix reconstructed by the maximum likelihood method.
+	def rho_max_likelihood(self):
+		"""Compute the standard deviation of the density matrix reconstructed by the maximum likelihood method.
 
-        :return: Its standard deviation.
+		:return: Its standard deviation.
 
-        """
-        std_dev = self.complex_std_dev(self.rhosrec)
-        return std_dev
+		"""
+		std_dev = self.complex_std_dev(self.rhosrec)
+		return std_dev
 
+	def entropy_neumann(self):
+		"""Compute the standard deviation of the von Neumann entropy.
 
-    def rho(self):
-        """Compute the standard deviation of the density matrix.
+		:param numpy_array rho: Density matrix
 
-        :return: Its standard deviation.
-        """
-        std_dev = self.complex_std_dev(self.rhos)
-        return std_dev
+		:return: Its standard deviation.
+		"""
+
+		d = DensityMatrix(self.basis)
+		c = []
+
+		for r in self.rhosrec:
+			c.append(d.entropy_neumann(r))
+
+		std_dev = self.complex_std_dev(c)
+		return std_dev
+
+	def rho(self):
+		"""Compute the standard deviation of the density matrix.
+
+		:return: Its standard deviation.
+		"""
+		std_dev = self.complex_std_dev(self.rhos)
+		return std_dev
 
 
 #If it is not used as a library, show how it works:
@@ -799,9 +815,10 @@ if __name__ == "__main__":
 
 
 	#Calculate Error
-	fidelity    = dm.fidelity_max(rho_recon)
-	concurrence = dm.concurrence(rho_recon)
-	purity		= dm.purity(rho_recon)
+	fidelity    	= dm.fidelity_max(rho_recon)
+	concurrence 	= dm.concurrence(rho_recon)
+	purity			= dm.purity(rho_recon)
+	entropyNeumann  = dm.entropy_neumann(rho_recon)
 
 	#Compute errors
 	err = Errorize(basis, cnts)
@@ -815,6 +832,8 @@ if __name__ == "__main__":
 	fid_std = np.around(err.fidelity_max(),decimals=5)
 	con_std = np.around(err.concurrence(), decimals=5)
 	pur_std = np.around(err.purity(), decimals=5)
+	ent_std = np.around(err.entropy_neumann(), decimals=5)
 	print("Fidelity: " +    str(fidelity)    + " +- " + str(fid_std))
 	print("Concurrence: " + str(concurrence) + " +- " + str(con_std))
 	print("Purity: " + str(purity) + " +- " + str(pur_std))
+	print("Von Neumann entropy: " + str(entropyNeumann) + " +- " + str(ent_std))
