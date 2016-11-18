@@ -217,7 +217,7 @@ class DensityMatrix(object):
 		projProb = np.conj(proj) * proj
 
 		rho = self.rho(projProb)
-		return self.rho_max_likelihood(rho, projProb)
+		return self.rho_max_likelihood(projProb)
 
 	def rho(self, correlation_counts):
 		"""Compute the density matrix from measured correlation counts.
@@ -476,10 +476,9 @@ class DensityMatrix(object):
 
 		return 1-F
 
-	def rho_max_likelihood(self,rho, corr_counts):
+	def rho_max_likelihood(self, corr_counts):
 		"""Compute the density matrix based on the maximum likelihood approach.
 
-		:param numpy_array rho: Density matrix estimated from the measured correlation counts. Does not need to be physical, i.e. does not need to be postive semidefinite.
 		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis specified in __init__.
 
 		:return: Density matrix which is positive semidefinite.
@@ -489,7 +488,32 @@ class DensityMatrix(object):
 
 		NormFactor 		= np.dot(self.TrM, self.corr_counts)
 
-		self.det_rho    = np.linalg.det(rho)
+		#self.det_rho    = np.linalg.det(rho)
+
+		#To get a start value for the optimization we are not using the Cholesky-decomposition since it fails for example for states like HH.
+		#The reason is that in this case the Cholesky-decomposition of the density matrix fails because of its implementation.
+		#We start with a flat distribution of all ones to make no assumptions about the states.
+		t_array = np.ones(16)
+
+		t_estimates = minimize(self.fun, x0 = t_array, args = NormFactor, method='POWELL', tol=1e-4)
+
+		return self.rho_phys(t_estimates.x)
+
+	def rho_max_likelihood_more(self, corr_counts, basis):
+		"""Compute the density matrix based on the maximum likelihood approach using more than the necessary 16 measurements.
+
+		:param numpy_array rho: Density matrix estimated from the measured correlation counts. Does not need to be physical, i.e. does not need to be postive semidefinite.
+		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis.
+		:param numpy_array basis: Basis in which correlations were measured.
+
+		:return: Density matrix which is positive semidefinite.
+		:rtype: numpy array
+		"""
+		self.corr_counts = corr_counts
+
+		NormFactor 		= np.dot(self.TrM, self.corr_counts)
+		#for b in basis:
+		#
 
 		#To get a start value for the optimization we are not using the Cholesky-decomposition since it fails for example for states like HH.
 		#The reason is that in this case the Cholesky-decomposition of the density matrix fails because of its implementation.
@@ -621,7 +645,7 @@ class Errorize(DensityMatrix):
 		for m in possibleMatrices:
 			rho = m.rho(m.cnts)
 			rhos.append(rho)
-			rhosrec.append(m.rho_max_likelihood(rho ,m.cnts))
+			rhosrec.append(m.rho_max_likelihood(m.cnts))
 
 		return {'rhos': rhos, 'rhosrec':rhosrec}
 
@@ -764,7 +788,7 @@ if __name__ == "__main__":
 	#However, due to measurement imperfections this matrix is not necessarily positive semidefinite.
 	#Find density matrix which best fits the data.
 
-	rho_recon 	= dm.rho_max_likelihood(rho, cnts)
+	rho_recon 	= dm.rho_max_likelihood(cnts)
 
 	closest_state_basis =["HH","HV","VH","VV"]
 	closest_state = dm.find_closest_pure_state(rho_recon, basis=closest_state_basis)
