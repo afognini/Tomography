@@ -486,7 +486,7 @@ class DensityMatrix(object):
 		"""
 		self.corr_counts = corr_counts
 
-		NormFactor 		= np.dot(self.TrM, self.corr_counts)
+		NormFactor	= np.dot(self.TrM, self.corr_counts)
 
 		#self.det_rho    = np.linalg.det(rho)
 
@@ -499,7 +499,7 @@ class DensityMatrix(object):
 
 		return self.rho_phys(t_estimates.x)
 
-	def rho_max_likelihood_more(self, corr_counts, basis):
+	def rho_max_likelihood_ext(self, corr_counts, basis):
 		"""Compute the density matrix based on the maximum likelihood approach using more than the necessary 16 measurements.
 
 		:param numpy_array rho: Density matrix estimated from the measured correlation counts. Does not need to be physical, i.e. does not need to be postive semidefinite.
@@ -509,20 +509,60 @@ class DensityMatrix(object):
 		:return: Density matrix which is positive semidefinite.
 		:rtype: numpy array
 		"""
-		self.corr_counts = corr_counts
-
-		NormFactor 		= np.dot(self.TrM, self.corr_counts)
-		#for b in basis:
-		#
 
 		#To get a start value for the optimization we are not using the Cholesky-decomposition since it fails for example for states like HH.
 		#The reason is that in this case the Cholesky-decomposition of the density matrix fails because of its implementation.
 		#We start with a flat distribution of all ones to make no assumptions about the states.
 		t_array = np.ones(16)
 
-		t_estimates = minimize(self.fun, x0 = t_array, args = NormFactor, method='POWELL', tol=1e-4)
+		t_estimates = minimize(self.fun_ext, x0 = t_array, args = [corr_counts,basis], method='POWELL', tol=1e-4)
 
 		return self.rho_phys(t_estimates.x)
+
+	def fun_ext(self,t, args):
+		"""Maximum likelihood function to be minimized.
+
+		:param numpy_array t: t values.
+		:param float NormFactor: Normalization factor.
+
+		:return: Function value. See for further information D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
+		:rtype: numpy float
+		"""
+		corr_counts=args[0]
+		basis=args[1]
+		nbrOfElements=len(basis)
+
+		PSI=[]
+		#Fill PSI
+		for basis_element in basis:
+			basis_branch1 = self.basis_str_to_object(basis_element[0])
+			basis_branch2 = self.basis_str_to_object(basis_element[1])
+			PSI.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
+
+		rho_phys = self.rho_phys(t)
+
+		#Estimate NormFactor
+		estNormFactor=[]
+
+		for i in range(len(corr_counts)):
+			estNormFactor.append(np.dot(np.dot(np.conj(PSI[i]), rho_phys),PSI[i]))
+
+		NormFactor=np.sum(corr_counts)/np.sum(estNormFactor)
+		
+
+		BraRoh_physKet = np.complex_(np.zeros(nbrOfElements))
+
+		for i in range(nbrOfElements):
+			rhoket = np.complex_(np.dot(rho_phys,PSI[i]))
+
+			b = np.complex_(np.zeros(4))
+
+			for j in range(4):
+				b[j] = rhoket[0,j]
+
+			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(PSI[i]), b))
+
+		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2/(2*NormFactor*BraRoh_physKet)))
 
 	def fun(self,t, NormFactor):
 		"""Maximum likelihood function to be minimized.
@@ -837,7 +877,12 @@ if __name__ == "__main__":
 	fidelity    = dm.fidelity_max(rho_recon)
 	print("Fidelity: " +    str(fidelity)+"\n")
 
-
+	r=dm.rho_max_likelihood_ext(np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]),
+								["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"])
+	print(dm.fidelity_max(r))
+	eigValues, eigVecors = np.linalg.eig(r)
+	print("Eigen-values: " + str(np.around(eigValues,decimals=round_digits))+"\n")
+	"""
 	#Calculate Error
 	fidelity    	= dm.fidelity_max(rho_recon)
 	concurrence 	= dm.concurrence(rho_recon)
@@ -861,3 +906,4 @@ if __name__ == "__main__":
 	print("Concurrence: " + str(concurrence) + " +- " + str(con_std))
 	print("Purity: " + str(purity) + " +- " + str(pur_std))
 	print("Von Neumann entropy: " + str(entropyNeumann) + " +- " + str(ent_std))
+	"""
