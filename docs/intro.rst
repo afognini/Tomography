@@ -45,7 +45,7 @@ We get the reconstructed positive semidefinite density matrix by evoking:
 
 .. code-block:: python
 
-	rho_recon=dm.rho_max_likelihood(rho, cnts)
+	rho_recon=dm.rho_max_likelihood(cnts)
 
 The library can also compute some quantum measures on the density matrix like the concurrence:
 

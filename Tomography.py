@@ -217,7 +217,7 @@ class DensityMatrix(object):
 		projProb = np.conj(proj) * proj
 
 		rho = self.rho(projProb)
-		return self.rho_max_likelihood(rho, projProb)
+		return self.rho_max_likelihood(projProb)
 
 	def rho(self, correlation_counts):
 		"""Compute the density matrix from measured correlation counts.
@@ -476,10 +476,9 @@ class DensityMatrix(object):
 
 		return 1-F
 
-	def rho_max_likelihood(self,rho, corr_counts):
+	def rho_max_likelihood(self, corr_counts):
 		"""Compute the density matrix based on the maximum likelihood approach.
 
-		:param numpy_array rho: Density matrix estimated from the measured correlation counts. Does not need to be physical, i.e. does not need to be postive semidefinite.
 		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis specified in __init__.
 
 		:return: Density matrix which is positive semidefinite.
@@ -487,29 +486,33 @@ class DensityMatrix(object):
 		"""
 		self.corr_counts = corr_counts
 
-		NormFactor 		= np.dot(self.TrM, self.corr_counts)
-
-		self.det_rho    = np.linalg.det(rho)
 
 		#To get a start value for the optimization we are not using the Cholesky-decomposition since it fails for example for states like HH.
 		#The reason is that in this case the Cholesky-decomposition of the density matrix fails because of its implementation.
 		#We start with a flat distribution of all ones to make no assumptions about the states.
 		t_array = np.ones(16)
 
-		t_estimates = minimize(self.fun, x0 = t_array, args = NormFactor, method='POWELL', tol=1e-4)
+		t_estimates = minimize(self.fun, x0 = t_array, args = corr_counts, method='POWELL', tol=1e-4)
 
 		return self.rho_phys(t_estimates.x)
 
-	def fun(self,t, NormFactor):
+	def fun(self,t, corr_counts):
 		"""Maximum likelihood function to be minimized.
 
 		:param numpy_array t: t values.
-		:param float NormFactor: Normalization factor.
 
 		:return: Function value. See for further information D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
 		:rtype: numpy float
 		"""
 		rho_phys = self.rho_phys(t)
+
+		#Calculate NormFactor in each optimization step
+		estimateProjection=[]
+		#Estimate NormFactor
+		for i in range(len(corr_counts)):
+			estimateProjection.append(np.dot(np.dot(np.conj(self.PSI[i]), rho_phys),self.PSI[i]))
+
+		NormFactor=np.sum(corr_counts)/np.sum(estimateProjection)
 
 		BraRoh_physKet = np.complex_(np.zeros(16))
 
@@ -523,7 +526,7 @@ class DensityMatrix(object):
 
 			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(self.PSI[i]), b))
 
-		return np.real(np.sum((NormFactor*BraRoh_physKet-self.corr_counts)**2/(2*NormFactor*BraRoh_physKet)))
+		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2/(2*NormFactor*BraRoh_physKet)))
 
 	def rho_phys(self, t):
 		"""Positive semidefinite matrix based on t values.
@@ -621,7 +624,7 @@ class Errorize(DensityMatrix):
 		for m in possibleMatrices:
 			rho = m.rho(m.cnts)
 			rhos.append(rho)
-			rhosrec.append(m.rho_max_likelihood(rho ,m.cnts))
+			rhosrec.append(m.rho_max_likelihood(m.cnts))
 
 		return {'rhos': rhos, 'rhosrec':rhosrec}
 
@@ -764,7 +767,7 @@ if __name__ == "__main__":
 	#However, due to measurement imperfections this matrix is not necessarily positive semidefinite.
 	#Find density matrix which best fits the data.
 
-	rho_recon 	= dm.rho_max_likelihood(rho, cnts)
+	rho_recon 	= dm.rho_max_likelihood(cnts)
 
 	closest_state_basis =["HH","HV","VH","VV"]
 	closest_state = dm.find_closest_pure_state(rho_recon, basis=closest_state_basis)
