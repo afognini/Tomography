@@ -515,7 +515,14 @@ class DensityMatrix(object):
 		#We start with a flat distribution of all ones to make no assumptions about the states.
 		t_array = np.ones(16)
 
-		t_estimates = minimize(self.fun_ext, x0 = t_array, args = [corr_counts,basis], method='POWELL', tol=1e-4)
+		PSI=[]
+		#Fill PSI
+		for basis_element in basis:
+			basis_branch1 = self.basis_str_to_object(basis_element[0])
+			basis_branch2 = self.basis_str_to_object(basis_element[1])
+			PSI.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
+
+		t_estimates = minimize(self.fun_ext, x0 = t_array, args = [corr_counts,basis,PSI], method='POWELL', tol=1e-4)
 
 		return self.rho_phys(t_estimates.x)
 
@@ -523,21 +530,16 @@ class DensityMatrix(object):
 		"""Maximum likelihood function to be minimized.
 
 		:param numpy_array t: t values.
-		:param float NormFactor: Normalization factor.
+		:param numpy_array args: first entry contains correlation counts, second the corresponding basis as string.
+		:param numpy_array args: PSIs, all possible basis as Jones vectors.
 
 		:return: Function value. See for further information D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
 		:rtype: numpy float
 		"""
 		corr_counts=args[0]
 		basis=args[1]
+		PSI=args[2]
 		nbrOfElements=len(basis)
-
-		PSI=[]
-		#Fill PSI
-		for basis_element in basis:
-			basis_branch1 = self.basis_str_to_object(basis_element[0])
-			basis_branch2 = self.basis_str_to_object(basis_element[1])
-			PSI.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
 
 		rho_phys = self.rho_phys(t)
 
@@ -548,21 +550,15 @@ class DensityMatrix(object):
 			estNormFactor.append(np.dot(np.dot(np.conj(PSI[i]), rho_phys),PSI[i]))
 
 		NormFactor=np.sum(corr_counts)/np.sum(estNormFactor)
-		
 
+		#Optimize density matrix
 		BraRoh_physKet = np.complex_(np.zeros(nbrOfElements))
 
 		for i in range(nbrOfElements):
-			rhoket = np.complex_(np.dot(rho_phys,PSI[i]))
+			rhoket = np.array(np.dot(rho_phys,PSI[i]).flat) #Convert 2d to 1d array with flat
+			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(PSI[i]), rhoket))
 
-			b = np.complex_(np.zeros(4))
-
-			for j in range(4):
-				b[j] = rhoket[0,j]
-
-			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(PSI[i]), b))
-
-		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2/(2*NormFactor*BraRoh_physKet)))
+		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2.0/(2.0*NormFactor*BraRoh_physKet)))
 
 	def fun(self,t, NormFactor):
 		"""Maximum likelihood function to be minimized.
@@ -578,16 +574,10 @@ class DensityMatrix(object):
 		BraRoh_physKet = np.complex_(np.zeros(16))
 
 		for i in range(16):
-			rhoket = np.complex_(np.dot(rho_phys,self.PSI[i]))
+			rhoket = np.array(np.dot(rho_phys,self.PSI[i]).flat) #Convert 2d to 1d array with flat
+			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(self.PSI[i]), rhoket))
 
-			b = np.complex_(np.zeros(4))
-
-			for j in range(4):
-				b[j] = rhoket[0,j]
-
-			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(self.PSI[i]), b))
-
-		return np.real(np.sum((NormFactor*BraRoh_physKet-self.corr_counts)**2/(2*NormFactor*BraRoh_physKet)))
+		return np.real(np.sum((NormFactor*BraRoh_physKet-self.corr_counts)**2.0/(2.0*NormFactor*BraRoh_physKet)))
 
 	def rho_phys(self, t):
 		"""Positive semidefinite matrix based on t values.
@@ -851,6 +841,10 @@ if __name__ == "__main__":
 
 	#Define states HH and VV
 	HH=dm.state("HH")
+	RR=dm.state("RR")
+	RL=dm.state("RL")
+	LR=dm.state("LR")
+	LL=dm.state("LL")
 	VV=dm.state("VV")
 
 	print("Rho of Bell state HH + iVV: \n" 		+ str(np.around(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV)),decimals=round_digits))+"\n")
@@ -860,7 +854,7 @@ if __name__ == "__main__":
 	print("Concurrence of HH + iVV:" 			+ str(np.around(dm.concurrence(dm.rho_state(state= 1/np.sqrt(2.0)*(HH+1.0j*VV))),decimals=round_digits))+"\n")
 	print("Concurrence of HH: " 				+ str(np.around(dm.concurrence(dm.rho_state(state= HH ) ),decimals=round_digits)) +"\n")
 
-	print("Density matrix of HH: \n" 			+ str(np.around(dm.rho_state(state= HH ) ,decimals=round_digits)) +"\n")
+	print("Density matrix of RR + RL + LR +LL: \n" 			+ str(np.around(dm.rho_state(state= 1/4.0*(RR + LR + RL + LL) ) ,decimals=round_digits)) +"\n")
 
 	print("Optimized Density matrix of HH: \n" 	+ str(np.around(dm.rho_state_optimized(state= HH ),decimals=round_digits )) +"\n")
 
