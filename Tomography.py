@@ -517,16 +517,10 @@ class DensityMatrix(object):
 		BraRoh_physKet = np.complex_(np.zeros(16))
 
 		for i in range(16):
-			rhoket = np.complex_(np.dot(rho_phys,self.PSI[i]))
+			rhoket = np.array(np.dot(rho_phys,self.PSI[i]).flat) #Convert 2d to 1d array with flat
+			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(self.PSI[i]), rhoket))
 
-			b = np.complex_(np.zeros(4))
-
-			for j in range(4):
-				b[j] = rhoket[0,j]
-
-			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(self.PSI[i]), b))
-
-		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2/(2*NormFactor*BraRoh_physKet)))
+		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2.0/(2.0*NormFactor*BraRoh_physKet)))
 
 	def rho_phys(self, t):
 		"""Positive semidefinite matrix based on t values.
