@@ -512,6 +512,7 @@ class DensityMatrix(object):
 		for i in range(len(corr_counts)):
 			estimateProjection.append(np.dot(np.dot(np.conj(self.PSI[i]), rho_phys),self.PSI[i]))
 
+		#Take the sum first and then calculate the fraction to prevent near zero devisions
 		NormFactor=np.sum(corr_counts)/np.sum(estimateProjection)
 
 		BraRoh_physKet = np.complex_(np.zeros(16))
