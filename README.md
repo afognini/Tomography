@@ -17,7 +17,7 @@ Tjeerd Fokkens, Andreas Fognini, Val Zwiller Optical Quantum Tomography Code. Av
 
 Authors: Tjeerd Fokkens, Andreas Fognini, Val Zwiller
 
-Copyright (c) 2016 TU Delft, Institute for Molecular Electronics and Devices
+Copyright (c) 2016-2017 TU Delft, Institute for Molecular Electronics and Devices
 
 Released under the terms of the MIT License (see file LICENSE)
 
