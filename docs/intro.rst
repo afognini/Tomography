@@ -45,7 +45,9 @@ We get the reconstructed positive semidefinite density matrix by evoking:
 
 .. code-block:: python
 
-	rho_recon=dm.rho_max_likelihood(cnts)
+	rho_recon=dm.rho_max_likelihood(rho, cnts, basis)
+
+Please note that you can provide more than 16 basis elements for the maximum likelihood approximation. From an experimental point of view it is beneficial to measure more than the necessary 16 correlations to achieve a more accurate reconstruction (maximum basis length representable in "H", "V", "R", "L", "D", and "A" is 36.).
 
 The library can also compute some quantum measures on the density matrix like the concurrence:
 

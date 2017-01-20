@@ -217,7 +217,7 @@ class DensityMatrix(object):
 		projProb = np.conj(proj) * proj
 
 		rho = self.rho(projProb)
-		return self.rho_max_likelihood(projProb)
+		return self.rho_max_likelihood(projProb, self.basis)
 
 	def rho(self, correlation_counts):
 		"""Compute the density matrix from measured correlation counts.
@@ -476,50 +476,64 @@ class DensityMatrix(object):
 
 		return 1-F
 
-	def rho_max_likelihood(self, corr_counts):
+	def rho_max_likelihood(self, corr_counts, basis):
 		"""Compute the density matrix based on the maximum likelihood approach.
+		The minimum lenght of is 16. However, the quality of the estimation can be improved by performing the experiment in more bases. Maximum length is 36.
 
-		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis specified in __init__.
+		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis.
+		:param numpy_array basis: Basis in which correlations were measured.
 
 		:return: Density matrix which is positive semidefinite.
 		:rtype: numpy array
 		"""
-		self.corr_counts = corr_counts
-
 
 		#To get a start value for the optimization we are not using the Cholesky-decomposition since it fails for example for states like HH.
 		#The reason is that in this case the Cholesky-decomposition of the density matrix fails because of its implementation.
 		#We start with a flat distribution of all ones to make no assumptions about the states.
 		t_array = np.ones(16)
 
-		t_estimates = minimize(self.fun, x0 = t_array, args = corr_counts, method='POWELL', tol=1e-4)
+		PSI=[]
+		#Fill PSI
+		for basis_element in basis:
+			basis_branch1 = self.basis_str_to_object(basis_element[0])
+			basis_branch2 = self.basis_str_to_object(basis_element[1])
+			PSI.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
+
+		t_estimates = minimize(self.fun, x0 = t_array, args = [corr_counts, basis, PSI], method='POWELL', tol=1e-4)
 
 		return self.rho_phys(t_estimates.x)
 
-	def fun(self,t, corr_counts):
+	def fun(self,t, args):
 		"""Maximum likelihood function to be minimized.
 
 		:param numpy_array t: t values.
+		:param numpy_array args: first entry contains correlation counts, second the corresponding basis as string.
+		:param numpy_array args: PSIs, all possible basis as Jones vectors.
 
 		:return: Function value. See for further information D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
 		:rtype: numpy float
 		"""
+		corr_counts=args[0]
+		basis=args[1]
+		PSI=args[2]
+		nbrOfElements=len(basis)
+
 		rho_phys = self.rho_phys(t)
 
-		#Calculate NormFactor in each optimization step
-		estimateProjection=[]
 		#Estimate NormFactor
+		estNormFactor=[]
+
 		for i in range(len(corr_counts)):
-			estimateProjection.append(np.dot(np.dot(np.conj(self.PSI[i]), rho_phys),self.PSI[i]))
+			estNormFactor.append(np.dot(np.dot(np.conj(PSI[i]), rho_phys),PSI[i]))
+		
+		NormFactor=np.sum(corr_counts)/np.sum(estNormFactor)
 
-		#Take the sum first and then calculate the fraction to prevent near zero devisions
-		NormFactor=np.sum(corr_counts)/np.sum(estimateProjection)
+		#Optimize density matrix
+		BraRoh_physKet = np.complex_(np.zeros(nbrOfElements))
 
-		BraRoh_physKet = np.complex_(np.zeros(16))
-
-		for i in range(16):
-			rhoket = np.array(np.dot(rho_phys,self.PSI[i]).flat) #Convert 2d to 1d array with flat
-			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(self.PSI[i]), rhoket))
+		for i in range(nbrOfElements):
+			rhoket = np.array(np.dot(rho_phys,PSI[i]).flat) #Convert 2d to 1d array with flat
+			BraRoh_physKet[i] = np.complex_(np.dot(np.conj(PSI[i]), rhoket))
 
 		return np.real(np.sum((NormFactor*BraRoh_physKet-corr_counts)**2.0/(2.0*NormFactor*BraRoh_physKet)))
 
@@ -619,7 +633,7 @@ class Errorize(DensityMatrix):
 		for m in possibleMatrices:
 			rho = m.rho(m.cnts)
 			rhos.append(rho)
-			rhosrec.append(m.rho_max_likelihood(m.cnts))
+			rhosrec.append(m.rho_max_likelihood(m.cnts, basis))
 
 		return {'rhos': rhos, 'rhosrec':rhosrec}
 
@@ -762,7 +776,7 @@ if __name__ == "__main__":
 	#However, due to measurement imperfections this matrix is not necessarily positive semidefinite.
 	#Find density matrix which best fits the data.
 
-	rho_recon 	= dm.rho_max_likelihood(cnts)
+	rho_recon 	= dm.rho_max_likelihood(cnts, basis)
 
 	closest_state_basis =["HH","HV","VH","VV"]
 	closest_state = dm.find_closest_pure_state(rho_recon, basis=closest_state_basis)
@@ -785,6 +799,10 @@ if __name__ == "__main__":
 
 	#Define states HH and VV
 	HH=dm.state("HH")
+	RR=dm.state("RR")
+	RL=dm.state("RL")
+	LR=dm.state("LR")
+	LL=dm.state("LL")
 	VV=dm.state("VV")
 
 	print("Rho of Bell state HH + iVV: \n" 		+ str(np.around(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV)),decimals=round_digits))+"\n")
@@ -794,7 +812,7 @@ if __name__ == "__main__":
 	print("Concurrence of HH + iVV:" 			+ str(np.around(dm.concurrence(dm.rho_state(state= 1/np.sqrt(2.0)*(HH+1.0j*VV))),decimals=round_digits))+"\n")
 	print("Concurrence of HH: " 				+ str(np.around(dm.concurrence(dm.rho_state(state= HH ) ),decimals=round_digits)) +"\n")
 
-	print("Density matrix of HH: \n" 			+ str(np.around(dm.rho_state(state= HH ) ,decimals=round_digits)) +"\n")
+	print("Density matrix of RR + RL + LR +LL: \n" 			+ str(np.around(dm.rho_state(state= 1/4.0*(RR + LR + RL + LL) ) ,decimals=round_digits)) +"\n")
 
 	print("Optimized Density matrix of HH: \n" 	+ str(np.around(dm.rho_state_optimized(state= HH ),decimals=round_digits )) +"\n")
 
@@ -811,7 +829,12 @@ if __name__ == "__main__":
 	fidelity    = dm.fidelity_max(rho_recon)
 	print("Fidelity: " +    str(fidelity)+"\n")
 
-
+	r=dm.rho_max_likelihood(np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]),
+								["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"])
+	print(dm.fidelity_max(r))
+	eigValues, eigVecors = np.linalg.eig(r)
+	print("Eigen-values: " + str(np.around(eigValues,decimals=round_digits))+"\n")
+	"""
 	#Calculate Error
 	fidelity    	= dm.fidelity_max(rho_recon)
 	concurrence 	= dm.concurrence(rho_recon)
@@ -835,3 +858,4 @@ if __name__ == "__main__":
 	print("Concurrence: " + str(concurrence) + " +- " + str(con_std))
 	print("Purity: " + str(purity) + " +- " + str(pur_std))
 	print("Von Neumann entropy: " + str(entropyNeumann) + " +- " + str(ent_std))
+	"""
