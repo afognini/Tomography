@@ -478,7 +478,7 @@ class DensityMatrix(object):
 
 	def rho_max_likelihood(self, corr_counts, basis):
 		"""Compute the density matrix based on the maximum likelihood approach.
-		The minimum lenght of is 16. However, the quality of the estimation can be improved by performing the experiment in more bases. Maximum length is 36.
+		The minimum lenght of corr_counts and basis is 16. However, the quality of the estimation can be improved by performing the experiment in more bases. Maximum length is 36.
 
 		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis.
 		:param numpy_array basis: Basis in which correlations were measured.
@@ -525,7 +525,7 @@ class DensityMatrix(object):
 
 		for i in range(len(corr_counts)):
 			estNormFactor.append(np.dot(np.dot(np.conj(PSI[i]), rho_phys),PSI[i]))
-		
+
 		NormFactor=np.sum(corr_counts)/np.sum(estNormFactor)
 
 		#Optimize density matrix
