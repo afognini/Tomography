@@ -38,7 +38,7 @@ At first, the DensityMatrix class is initialized with the measurement basis. The
 	cnts = np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586])
 	rho  = dm.rho(cnts)
 
-However, due to measurement imperfections this matrix is not necessarily positive semidefinite.
+However, due to measurement imperfections this matrix is not necessarily positive semidefinite and in that case not a physical meaningful density matrix.
 To circumvent this problem a maximum likelihood estimation as described in the aforementioned paper is implemented.
 Please note that we initialize the t parameters in our implementation with only ones. In this way, the algorithm can also handle states like HH, since the Cholesky decomposition can effectively be computed.
 We get the reconstructed positive semidefinite density matrix by evoking:
@@ -63,7 +63,7 @@ or the fidelity:
 
 The fidelity is calculated here to a maximally entangled state. We used the algorithm described in http://dx.doi.org/10.1103/PhysRevA.66.022307.
 
-In quantum tomography not only the density matrix is of interest but also the pure state which most likely characterizes the system. This is only reasonable if the density matrix reconstructed is already close to a pure state, i.e. its fidelty or concurrence is close to unity.
+In quantum tomography not only the density matrix is of interest but also the pure state which most likely characterizes the system. This is only reasonable if the density matrix reconstructed is already close to a pure state, i.e. its fidelity or concurrence is close to unity.
 
 The following code block is an example how to reconstruct a pure state with this library:
 
@@ -123,3 +123,14 @@ To get the error of the above examples do:
 
 	print("fid_err: \n" + str(fid_err) + "\n")
 	print("con_err: \n" + str(con_err) + "\n")
+
+
+What's new
+===================
+
+*in version 0.3*
+
+* changed minimization algorithm from *Powell* to *L-BFGS-B* resulting in a :math:`\approx 10` times speedup of the minimization function affecting ``rho_max_likelihood()`` and ``find_closest_pure_state()``
+* error estimation works now also with more than 16 bases
+
+

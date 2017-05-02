@@ -21,6 +21,10 @@ Copyright (c) 2016-2017 TU Delft, Institute for Molecular Electronics and Device
 
 Released under the terms of the MIT License (see file LICENSE)
 
+# Acknowledgement
+
+A. Fognini greatly acknowledges the support from the Swiss National Science Foundation's Early Postdoc Fellowship.
+
 # Requirements
 
 Please note that this library needs python3.x, numpy, and scipy.

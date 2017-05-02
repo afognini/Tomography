@@ -1,7 +1,7 @@
 #!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 
-#  Copyright (c) 2016 Tjeerd Fokkens, Andreas Fognini, Val Zwiller
+#  Copyright (c) 2016-2017 Tjeerd Fokkens, Andreas Fognini, Val Zwiller
 #  Licensed MIT: http://opensource.org/licenses/MIT
 
 import numpy as np
@@ -9,6 +9,8 @@ import scipy.linalg
 from scipy.optimize import minimize, rosen, rosen_der
 from scipy.linalg import fractional_matrix_power
 from multiprocessing import Pool
+import time
+
 
 class DensityMatrix(object):
 	"""Computes the density matrix for an optical two qubit system.
@@ -437,7 +439,7 @@ class DensityMatrix(object):
 
 		x0_array =np.ones(8)
 
-		c_estimates =minimize(self.opt_pure_state, x0 = x0_array, args = (rho, SPAN_RHO), method='POWELL', tol=1e-4)
+		c_estimates =minimize(self.opt_pure_state, x0 = x0_array, args = (rho, SPAN_RHO), method='L-BFGS-B', tol=1e-4)
 
 		#state = np.dot(c_estimates, SPAN_RHO)
 		coeff=[]
@@ -478,7 +480,7 @@ class DensityMatrix(object):
 
 	def rho_max_likelihood(self, corr_counts, basis):
 		"""Compute the density matrix based on the maximum likelihood approach.
-		The minimum lenght of is 16. However, the quality of the estimation can be improved by performing the experiment in more bases. Maximum length is 36.
+		The minimum lenght of corr_counts and basis is 16. However, the quality of the estimation can be improved by performing the experiment in more bases. Maximum length is 36.
 
 		:param numpy_array corr_counts:	Measured correlation counts corresponding to the basis.
 		:param numpy_array basis: Basis in which correlations were measured.
@@ -499,8 +501,7 @@ class DensityMatrix(object):
 			basis_branch2 = self.basis_str_to_object(basis_element[1])
 			PSI.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
 
-		t_estimates = minimize(self.fun, x0 = t_array, args = [corr_counts, basis, PSI], method='POWELL', tol=1e-4)
-
+		t_estimates = minimize(self.fun, x0 = t_array, args = [corr_counts, basis, PSI], method='L-BFGS-B', tol=1e-4)
 		return self.rho_phys(t_estimates.x)
 
 	def fun(self,t, args):
@@ -525,7 +526,7 @@ class DensityMatrix(object):
 
 		for i in range(len(corr_counts)):
 			estNormFactor.append(np.dot(np.dot(np.conj(PSI[i]), rho_phys),PSI[i]))
-		
+
 		NormFactor=np.sum(corr_counts)/np.sum(estNormFactor)
 
 		#Optimize density matrix
@@ -568,10 +569,10 @@ class Errorize(DensityMatrix):
 	"""
 
 	def __init__(self, basis, cnts):
-		"""Initialize Errorize class.
+		"""Initialize Errorize class. Can handle over defined > 16 basis measurements.
 
-		:param array basis: Basis of measurements
-		:param array cnts: Correlation counts of the measurements
+		:param array basis: Basis of measurements, length min 16 and max 36
+		:param array cnts: Correlation counts of the measurements, length min 16 and max 36
 
 		Example:
 
@@ -585,6 +586,8 @@ class Errorize(DensityMatrix):
 		self.cnts = cnts
 		self.basis = basis
 
+		self.b0=["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
+
 	def sim_counts(self, counts):
 		"""Simulates counting statistics noise.
 
@@ -597,12 +600,13 @@ class Errorize(DensityMatrix):
 		return simc
 
 
-	def collect_results(self, result):
+	def __collect_results(self, result):
 		"""Helper function for multicore processing.
 		"""
-		rho, rhorec = result['rhos'], result['rhosrec']
-		for r in rho:
-			self.rhos.append(r)
+		#rho, rhorec = result['rhos'], result['rhosrec']
+		rhorec = result['rhosrec']
+		#for r in rho:
+		#	self.rhos.append(r)
 		for r in rhorec:
 			self.rhosrec.append(r)
 
@@ -621,21 +625,17 @@ class Errorize(DensityMatrix):
 		:rtype: dict
 		"""
 		possibleMatrices = []
-		rhos = []
 		rhosrec = []
 
 		for i in range(n_cycles_per_core):
 			possibleCnts = self.sim_counts(self.cnts)
-
-			possibleMatrices.append(DensityMatrix(basis))
+			possibleMatrices.append(DensityMatrix(self.b0))
 			possibleMatrices[i].cnts = possibleCnts
 
 		for m in possibleMatrices:
-			rho = m.rho(m.cnts)
-			rhos.append(rho)
 			rhosrec.append(m.rho_max_likelihood(m.cnts, basis))
 
-		return {'rhos': rhos, 'rhosrec':rhosrec}
+		return {'rhosrec':rhosrec}
 
 	def multiprocessing_simulate(self, n_cycles_per_core  = 10, nbr_of_cores = 8):
 		"""Perform Monte Carlo simulation parallel on several CPU cores. Each core will call function self.sim().
@@ -654,18 +654,19 @@ class Errorize(DensityMatrix):
 		:rtype: numpy matrices
 		"""
 
-		self.rhos = []
+		#self.rhos = []
 		self.rhosrec = []
 
 		pool = Pool()
 
 		for i in range(nbr_of_cores):
-			pool.apply_async(self.sim, [n_cycles_per_core, self.basis], callback = self.collect_results)
+			pool.apply_async(self.sim, [n_cycles_per_core, self.basis], callback = self.__collect_results)
 
 		pool.close()
 		pool.join()
 
-		return self.rhos, self.rhosrec
+		#return self.rhos, self.rhosrec
+		return self.rhosrec
 
 	def complex_std_dev(self, matrices):
 		"""Compute the standard deviation for the real and complex part of matrices separately.
@@ -686,7 +687,7 @@ class Errorize(DensityMatrix):
 			Function from: http://dx.doi.org/10.1103/PhysRevA.66.022307
 
 		"""
-		d = DensityMatrix(self.basis)
+		d = DensityMatrix(self.b0)
 		fidelities = []
 
 		for r in self.rhosrec:
@@ -701,7 +702,7 @@ class Errorize(DensityMatrix):
 		:return: Its standard deviation.
 
 		"""
-		d = DensityMatrix(self.basis)
+		d = DensityMatrix(self.b0)
 		c = []
 
 		for r in self.rhosrec:
@@ -716,7 +717,7 @@ class Errorize(DensityMatrix):
 		:return: Its standard deviation.
 
 		"""
-		d = DensityMatrix(self.basis)
+		d = DensityMatrix(self.b0)
 		c = []
 
 		for r in self.rhosrec:
@@ -742,7 +743,7 @@ class Errorize(DensityMatrix):
 		:return: Its standard deviation.
 		"""
 
-		d = DensityMatrix(self.basis)
+		d = DensityMatrix(self.b0)
 		c = []
 
 		for r in self.rhosrec:
@@ -750,15 +751,6 @@ class Errorize(DensityMatrix):
 
 		std_dev = self.complex_std_dev(c)
 		return std_dev
-
-	def rho(self):
-		"""Compute the standard deviation of the density matrix.
-
-		:return: Its standard deviation.
-		"""
-		std_dev = self.complex_std_dev(self.rhos)
-		return std_dev
-
 
 #If it is not used as a library, show how it works:
 if __name__ == "__main__":
@@ -775,7 +767,7 @@ if __name__ == "__main__":
 	rho  = dm.rho(cnts)
 	#However, due to measurement imperfections this matrix is not necessarily positive semidefinite.
 	#Find density matrix which best fits the data.
-
+	
 	rho_recon 	= dm.rho_max_likelihood(cnts, basis)
 
 	closest_state_basis =["HH","HV","VH","VV"]
@@ -834,7 +826,7 @@ if __name__ == "__main__":
 	print(dm.fidelity_max(r))
 	eigValues, eigVecors = np.linalg.eig(r)
 	print("Eigen-values: " + str(np.around(eigValues,decimals=round_digits))+"\n")
-	"""
+
 	#Calculate Error
 	fidelity    	= dm.fidelity_max(rho_recon)
 	concurrence 	= dm.concurrence(rho_recon)
@@ -843,6 +835,7 @@ if __name__ == "__main__":
 
 	#Compute errors
 	err = Errorize(basis, cnts)
+	#t0=time.time()
 	err.multiprocessing_simulate(n_cycles_per_core  = 10, nbr_of_cores = 2)
 
 	rho_err = err.rho_max_likelihood()
@@ -854,8 +847,9 @@ if __name__ == "__main__":
 	con_std = np.around(err.concurrence(), decimals=5)
 	pur_std = np.around(err.purity(), decimals=5)
 	ent_std = np.around(err.entropy_neumann(), decimals=5)
+
+	#print(str(time.time()-t0))
 	print("Fidelity: " +    str(fidelity)    + " +- " + str(fid_std))
 	print("Concurrence: " + str(concurrence) + " +- " + str(con_std))
 	print("Purity: " + str(purity) + " +- " + str(pur_std))
 	print("Von Neumann entropy: " + str(entropyNeumann) + " +- " + str(ent_std))
-	"""
