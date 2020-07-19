@@ -114,6 +114,38 @@ class DensityMatrix(object):
 		#Trace of M
 		self.TrM = np.einsum('...ii',self.M)
 
+	def apply_waveplate(self, state, theta, phi):
+		"""Apply a virtual waveplate to a state
+		A general waveplate matrix is directly applied to a two-photon state.
+		The state can be a pure state as well as a density matrix.
+
+		:param state: The state onto which the waveplate is applied.
+		:param theta: The angle of the fast axis with respect to self.H ([1,0])
+		:param phi: The phase shift induced for light polarized along the slow axis
+
+		:return: The resulting state or density matrix.
+		"""
+		w = [[np.cos(theta)**2+np.exp(1j*phi)*np.sin(theta)**2, 0.5*(np.exp(1j*phi)-1)*np.sin(2*theta)],
+			[0.5*(np.exp(1j*phi)-1)*np.sin(2*theta), np.sin(theta)**2+np.exp(1j*phi)*np.cos(theta)**2]]
+		w2 = np.kron(w, w)
+		transformed_state = np.dot(w2, np.dot(state, np.conjugate(w2.T)))
+		return transformed_state
+
+	def rotate_reference_frame(self, state, theta):
+		"""Apply a simple rotation to the state or density matrix.
+		A special case would be rotating H to D and V to A by rotating 90°
+		The state can be a pure state as well as a density matrix.
+
+		:param state: The state onto which the rotation is applied.
+		:param theta: The angle of rotation
+
+		:return: The resulting state or density matrix.
+		"""
+		r = np.array(((np.cos(theta), -np.sin(theta)), (np.sin(theta), np.cos(theta))))
+		r2 = np.kron(r, r)
+		transformed = np.dot(r2, np.dot(state, np.conjugate(r2.T)))
+		return transformed
+
 	def state(self,string):
 		"""Compute state from string.
 
@@ -215,7 +247,7 @@ class DensityMatrix(object):
 				dm.rho_state_optimized(state)
 		"""
 
-		proj = np.einsum('ij,j->i',np.conj(self.PSI),state)
+		proj = np.einsum('ij,j->i', np.conj(self.PSI), state)
 		projProb = np.conj(proj) * proj
 
 		rho = self.rho(projProb)
@@ -233,7 +265,7 @@ class DensityMatrix(object):
 			.. code-block:: python
 
 				correlation_counts = np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586])
-				basis = ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
+				basis = ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
 
 			Data from: D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
 		"""
@@ -247,7 +279,7 @@ class DensityMatrix(object):
 		:param array PSI: :math:`\psi_\\nu` vector with :math:`\\nu=1,...,16`, computed in __init__
 		:param array GAMMA: :math:`\Gamma` matrices, computed in __init__
 
-		:return: :math:`B_{\\nu,\mu} = \\langle \psi_\\nu \\rvert  \Gamma_\mu  \\lvert \psi_\\nu \\rangle`
+		:return: :math:`B_{\\nu,\mu} = \\langle \psi_\\nu \\rvert  \Gamma_\mu  \\lvert \psi_\\nu \\rangle`
 		:rtype: numpy array
 		"""
 
@@ -258,14 +290,14 @@ class DensityMatrix(object):
 				B[i,j] = np.dot(np.conj(PSI[i]) , np.dot(GAMMA[j], PSI[i]))
 		return B
 
-	def test_gamma(self,gamma):
+	def test_gamma(self, gamma):
 		"""Test if :math:`\Gamma_i, {i=1,...,16}` matrices are properly defined.
 
 		:param array GAMMA: Gamma matrices.
 
 		Test for:
 
-			:math:`\mathrm{Tr}(\Gamma_i\Gamma_j)= \delta_{i,j}`
+			:math:`\mathrm{Tr}(\Gamma_i\Gamma_j)= \delta_{i,j}`
 
 		:return: True if equation fullfilled for all gamma matrices, False otherwise.
 		:rtype: bool
@@ -300,7 +332,7 @@ class DensityMatrix(object):
 
 			.. code-block:: python
 
-				pol = \"A\"
+				pol = \"A\"
 		"""
 
 		if pol == "H":
@@ -346,7 +378,7 @@ class DensityMatrix(object):
 		:rtype: complex
 		"""
 
-		rhoTilde = np.dot( np.dot(np.kron(self.PAULI[1], self.PAULI[1]) , rho.conj()) , np.kron(self.PAULI[1], self.PAULI[1]))
+		rhoTilde = np.dot( np.dot(np.kron(self.PAULI[1], self.PAULI[1]), rho.conj()), np.kron(self.PAULI[1], self.PAULI[1]))
 
 		rhoRoot = scipy.linalg.fractional_matrix_power(rho, 1/2.0)
 
@@ -369,7 +401,7 @@ class DensityMatrix(object):
 		return np.trace(np.dot(rho,rho))
 
 	def fidelity(self, m, n):
-		"""Compute the fidelity between the density matrces m and n.
+		"""Compute the fidelity between the density matrices m and n.
 
 		:param numpy_array m: Density matrix
 		:param numpy_array n: Density matrix
@@ -378,11 +410,24 @@ class DensityMatrix(object):
 		:rtype: complex
 		"""
 		sqrt_m = fractional_matrix_power(m, 0.5)
-		F = np.trace(fractional_matrix_power(np.dot(sqrt_m,np.dot(n, sqrt_m)), 0.5))**2.0
+		fidelity = np.trace(fractional_matrix_power(np.dot(sqrt_m, np.dot(n, sqrt_m)), 0.5))**2.0
 
-		return F
+		return fidelity
 
-	def fidelity_max(self,rho):
+	def fidelity_purestate(self, rho, state):
+		"""Compute the fidelity to a pure state. Should be faster than fidelity().
+
+		:param numpy_array rho: Density matrix
+		:param numpy_array state: state
+
+		:return: The fidelity between self and state (:math:`\abs\mathrm{state}\\rho\mathrm{state}`).
+		:rtype: float
+		"""
+		fidelity = np.abs(np.dot(np.dot(rho, state), np.conjugate(state)))
+
+		return fidelity
+
+	def fidelity_max(self, rho):
 		"""Compute the maximal fidelity of rho to a maximally entangled state.
 
 		:param numpy_array rho: Density matrix
@@ -416,9 +461,71 @@ class DensityMatrix(object):
 		lmbda = np.sort(np.sqrt(eigValues))
 
 		#The fidelity is:
-		f = (1+lmbda[2] + lmbda[1] - SgnDetR*lmbda[0])/4.0
+		fidelity = (1+lmbda[2] + lmbda[1] - SgnDetR*lmbda[0])/4.0
 
-		return f
+		return fidelity
+
+	def waveplate_rho_to_target(self, rho, target, theta_min=-np.pi/2, theta_max=np.pi/2, phi_min=-np.pi/2, phi_max=np.pi/2):
+		"""Rotates input density matrix to target density matrix using a virtual waveplate.
+
+		:param numpy_array rho: Density matrix
+		:param numpy_array target: Target density matrix or state
+		:param float theta_min: Lower bound for theta, default -pi/2
+		:param float theta_max: Upper bound for theta, default pi/2
+		:param float phi_min: Lower bound for phi, default -pi/2
+		:param float phi_max: Upper bound for phi, default pi/2
+
+		:return: closest match to rho_target and angles of virtual waveplates theta and phi.
+		:rtype: tuple(numpy array, float, float)
+
+		"""
+		if type(target) != np.ndarray:
+			target = np.array(target)
+		if target.shape == (4, 4):
+			optfun = self.opt_waveplate
+		elif target.shape == (4,):
+			optfun = self.opt_waveplate_to_state
+		else:
+			raise TypeError('Please use a state vector or density matrix as input')
+
+		x0_array = np.array([0, 0])
+		c_estimates = minimize(optfun, x0=x0_array, args=(rho, target), method='L-BFGS-B',
+								bounds=[(theta_min, theta_max), (phi_min, phi_max)])
+		theta = c_estimates.x[0]
+		phi = c_estimates.x[1]
+		rho_rotated = self.apply_waveplate(rho, theta, phi)
+		if not c_estimates.success:
+			print('minimizer for waveplate angles failed')
+		return rho_rotated, theta, phi
+
+	def opt_waveplate_to_state(self, coeff_array, rho, state_target):
+		"""Helper function for *self.rotate_rho_to_target*.
+
+		:param numpy_array coeff_array: Coefficient array, to be optimized
+		:param numpy_array rho: Initial density matrix
+		:param numpy_array state: Target state
+
+		:return: 1-fidelity, such that the minimizing function finds the maximum of the fidelity.
+		:rtype: complex
+		"""
+		sigma = self.apply_waveplate(rho, coeff_array[0], coeff_array[1])
+		fidelity = np.real(self.fidelity_purestate(sigma, state_target))
+		return 1-fidelity
+
+
+	def opt_waveplate(self, coeff_array, rho, rho_target):
+		"""Helper function for *self.rotate_rho_to_target*.
+
+		:param numpy_array coeff_array: Coefficient array, to be optimized
+		:param numpy_array rho: Initial density matrix
+		:param numpy_array rho_target: Target density matrix
+
+		:return: 1-fidelity, such that the minimizing function finds the maximum of the fidelity.
+		:rtype: complex
+		"""
+		sigma = self.apply_waveplate(rho, coeff_array[0],coeff_array[1])
+		fidelity = np.real(self.fidelity(sigma, rho_target))
+		return 1-fidelity
 
 	def find_closest_pure_state(self, rho, basis =["HH", "HV", "VH", "VV"]):
 		"""Finds the closest pure state to the density matrix rho in the given basis.
@@ -435,22 +542,24 @@ class DensityMatrix(object):
 		for basis_element in basis:
 			basis_branch1 = self.basis_str_to_object(basis_element[0])
 			basis_branch2 = self.basis_str_to_object(basis_element[1])
-			SPAN_RHO.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
+			SPAN_RHO.append(np.hstack(np.outer(basis_branch1, basis_branch2)))
 
 		x0_array =np.ones(8)
 
-		c_estimates =minimize(self.opt_pure_state, x0 = x0_array, args = (rho, SPAN_RHO), method='L-BFGS-B', tol=1e-4)
+		c_estimates = minimize(self.opt_pure_state, x0 = x0_array, args = (rho, SPAN_RHO),method='L-BFGS-B')
 
-		#state = np.dot(c_estimates, SPAN_RHO)
-		coeff=[]
+		#state = np.dot(c_estimates, SPAN_RHO)
+		coeff = []
 		for i in range(4):
 			coeff.append(c_estimates.x[2*i]+1j*c_estimates.x[2*i+1])
 
-		state_norm =coeff/np.sqrt(np.vdot(coeff,coeff))
+		state_norm = coeff / np.sqrt(np.vdot(coeff, coeff))
 
 		#convention: first basis elemnt has no imaginary part
 		theta =np.angle(state_norm[0])
 		state_norm_conv = np.exp(-1j*theta)*state_norm
+		if not c_estimates.success:
+			print('minimizer for closest pure state failed')
 		return state_norm_conv
 
 	def opt_pure_state(self, coeff_array, rho, basis):
@@ -463,20 +572,17 @@ class DensityMatrix(object):
 		:return: 1-fidelity, such that the minimizing function finds the maximum of the fidelity.
 		:rtype: complex
 		"""
-		coeff =[]
-
+		coeff = []
 		for i in range(4):
 			coeff.append(coeff_array[2*i]+1j*coeff_array[2*i+1])
 
-		coeff = coeff/np.sqrt(np.vdot(coeff,coeff))
+		coeff = coeff / np.sqrt(np.vdot(coeff, coeff))
 
 		state =np.dot(coeff, basis)
 
-		sigma =self.rho_state(np.array(state))
+		fidelity = np.real(self.fidelity_purestate(rho, state))
 
-		F = np.real(self.fidelity(rho, sigma))
-
-		return 1-F
+		return 1-fidelity
 
 	def rho_max_likelihood(self, corr_counts, basis):
 		"""Compute the density matrix based on the maximum likelihood approach.
@@ -501,10 +607,12 @@ class DensityMatrix(object):
 			basis_branch2 = self.basis_str_to_object(basis_element[1])
 			PSI.append(np.hstack(np.outer(basis_branch1,basis_branch2)))
 
-		t_estimates = minimize(self.fun, x0 = t_array, args = [corr_counts, basis, PSI], method='L-BFGS-B', tol=1e-4)
+		t_estimates = minimize(self.fun, x0=t_array, args=[corr_counts, basis, PSI], method='L-BFGS-B')
+		if not t_estimates.success:
+			print('minimizer for density matrix failed')
 		return self.rho_phys(t_estimates.x)
 
-	def fun(self,t, args):
+	def fun(self, t, args):
 		"""Maximum likelihood function to be minimized.
 
 		:param numpy_array t: t values.
@@ -579,14 +687,14 @@ class Errorize(DensityMatrix):
 			.. code-block:: python
 
 				cnts	= np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586])
-				basis   = ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
+				basis   = ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
 
 			Data from: D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
 		"""
 		self.cnts = cnts
 		self.basis = basis
 
-		self.b0=["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
+		self.b0 = ["HH", "HV", "VV", "VH", "RH", "RV", "DV", "DH", "DR", "DD", "RD", "HD", "VD", "VL", "HL", "RL"]
 
 	def sim_counts(self, counts):
 		"""Simulates counting statistics noise.
@@ -596,7 +704,7 @@ class Errorize(DensityMatrix):
 		:return: Array of simulated counting statistics values.
 		:rtype: numpy array
 		"""
-		simc = np.random.normal(counts,np.sqrt(counts))
+		simc = np.random.normal(counts, np.sqrt(counts))
 		return simc
 
 
@@ -759,20 +867,21 @@ if __name__ == "__main__":
 	round_digits =2
 
 	#Compute the raw density matrix, data from: D. F. V. James et al. Phys. Rev. A, 64, 052312 (2001).
-	basis= ["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"]
+	basis = ["HH", "HV", "VV", "VH", "RH", "RV", "DV", "DH", "DR", "DD", "RD", "HD", "VD", "VL", "HL", "RL"]
 	cnts = np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586])
 
-	dm = DensityMatrix(basis= basis)
+	dm = DensityMatrix(basis=basis)
 
-	rho  = dm.rho(cnts)
+	rho = dm.rho(cnts)
 	#However, due to measurement imperfections this matrix is not necessarily positive semidefinite.
 	#Find density matrix which best fits the data.
-	
+
 	rho_recon 	= dm.rho_max_likelihood(cnts, basis)
 
-	closest_state_basis =["HH","HV","VH","VV"]
+
+	closest_state_basis = ["HH", "HV", "VH", "VV"]
 	closest_state = dm.find_closest_pure_state(rho_recon, basis=closest_state_basis)
-	rho_state_closest =dm.rho_state(closest_state)
+	rho_state_closest = dm.rho_state(closest_state)
 
 	s = str()
 	for i in range(3):
@@ -782,50 +891,60 @@ if __name__ == "__main__":
 	print("Basis: \n" + str(basis) + "\n")
 	print("Cnts: \n" + str(cnts) + "\n")
 
-	print("Raw Rho: \n" 						+ str(np.around(rho,decimals = round_digits)) + "\n")
-	print("Rho Reconstructed: \n" 				+ str(np.around(rho_recon, decimals =round_digits)) + "\n")
+	print("Raw Rho: \n" 						+ str(np.around(rho, decimals=round_digits)) + "\n")
+	print("Rho Reconstructed: \n" 				+ str(np.around(rho_recon, decimals=round_digits)) + "\n")
 
 	print("Closest State: \n" + s + "\n")
 
-	print("Rho State closest: \n" 				+ str(np.around(rho_state_closest, decimals =round_digits)) + "\n")
+	print("Rho State closest: \n" 				+ str(np.around(rho_state_closest, decimals=round_digits)) + "\n")
 
-	#Define states HH and VV
-	HH=dm.state("HH")
-	RR=dm.state("RR")
-	RL=dm.state("RL")
-	LR=dm.state("LR")
-	LL=dm.state("LL")
-	VV=dm.state("VV")
+	#Define states HH and VV
+	HH = dm.state("HH")
+	RR = dm.state("RR")
+	RL = dm.state("RL")
+	LR = dm.state("LR")
+	LL = dm.state("LL")
+	VV = dm.state("VV")
 
-	print("Rho of Bell state HH + iVV: \n" 		+ str(np.around(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV)),decimals=round_digits))+"\n")
+	print('A virtual waveplate can be applied to transform the result to the Bell state HH - VV\n')
+	# calculate waveplate to transform HH+VV to HH-VV
+	rho_auto_tranformed, theta, phi = dm.waveplate_rho_to_target(rho_recon, dm.rho_state(state=1 / np.sqrt(2) * (HH - VV)))
+	# if angles are known they can also be applied directly
+	rho_manually_transformed = dm.apply_waveplate(rho_recon, theta, phi)
+	print("Rho Auto Transformed: \n" 						+ str(np.around(rho_auto_tranformed, decimals=round_digits)) + "\n")
+	print(f'theta: {np.around(theta/np.pi, decimals=round_digits+1)} Pi')
+	print(f'phi: {np.around(phi/np.pi, decimals=round_digits+1)} Pi\n')
+	print("Rho Manually Transformed: \n" 						+ str(np.around(rho_manually_transformed, decimals=round_digits)) + "\n")
 
-	print("Entropy of HH + iVV:" 				+ str(np.around(dm.entropy_neumann(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV))),decimals=round_digits))+"\n")
+	print("Rho of Bell state HH + iVV: \n" 		+ str(np.around(dm.rho_state(state=1/np.sqrt(2)*(HH+1j*VV)), decimals=round_digits))+"\n")
 
-	print("Concurrence of HH + iVV:" 			+ str(np.around(dm.concurrence(dm.rho_state(state= 1/np.sqrt(2.0)*(HH+1.0j*VV))),decimals=round_digits))+"\n")
-	print("Concurrence of HH: " 				+ str(np.around(dm.concurrence(dm.rho_state(state= HH ) ),decimals=round_digits)) +"\n")
+	print("Entropy of HH + iVV:" 				+ str(np.around(dm.entropy_neumann(dm.rho_state(state=1/np.sqrt(2)*(HH+1j*VV))), decimals=round_digits))+"\n")
 
-	print("Density matrix of RR + RL + LR +LL: \n" 			+ str(np.around(dm.rho_state(state= 1/4.0*(RR + LR + RL + LL) ) ,decimals=round_digits)) +"\n")
+	print("Concurrence of HH + iVV:" 			+ str(np.around(dm.concurrence(dm.rho_state(state=1/np.sqrt(2.0)*(HH+1.0j*VV))), decimals=round_digits))+"\n")
+	print("Concurrence of HH: " 				+ str(np.around(dm.concurrence(dm.rho_state(state=HH)), decimals=round_digits)) +"\n")
 
-	print("Optimized Density matrix of HH: \n" 	+ str(np.around(dm.rho_state_optimized(state= HH ),decimals=round_digits )) +"\n")
+	print("Density matrix of RR + RL + LR +LL: \n" 			+ str(np.around(dm.rho_state(state=1/4.0*(RR + LR + RL + LL)), decimals=round_digits)) +"\n")
 
-	print("Fidelity of HH + iVV:" 	    		+ str(np.around(dm.fidelity_max(dm.rho_state(state= 1/np.sqrt(2)*(HH+1j*VV))),decimals=round_digits))+"\n")
+	print("Optimized Density matrix of HH: \n" 	+ str(np.around(dm.rho_state_optimized(state=HH), decimals=round_digits)) +"\n")
 
-	print("Fidelity of HH: " 	    			+ str(np.around(dm.fidelity_max(dm.rho_state(state= HH)),decimals=round_digits))+"\n")
+	print("Fidelity of HH + iVV:" 	    		+ str(np.around(dm.fidelity_max(dm.rho_state(state=1/np.sqrt(2)*(HH+1j*VV))), decimals=round_digits))+"\n")
+
+	print("Fidelity of HH: " 	    			+ str(np.around(dm.fidelity_max(dm.rho_state(state=HH)), decimals=round_digits))+"\n")
 
 	eigValues, eigVecors = np.linalg.eig(rho_recon)
 
-	print("Eigen-values: " + str(np.around(eigValues,decimals=round_digits))+"\n")
-	print("Pureness: " + str(np.around(np.trace( np.dot( rho_recon, rho_recon) ),decimals=round_digits)) +"\n")
-	print("von Neumann Entropy: \n" + str(np.around(dm.entropy_neumann(rho_recon),decimals=round_digits))+"\n")
+	print("Eigen-values: " + str(np.around(eigValues, decimals=round_digits))+"\n")
+	print("Pureness: " + str(np.around(np.trace(np.dot(rho_recon, rho_recon)), decimals=round_digits)) +"\n")
+	print("von Neumann Entropy: \n" + str(np.around(dm.entropy_neumann(rho_recon), decimals=round_digits))+"\n")
 
-	fidelity    = dm.fidelity_max(rho_recon)
-	print("Fidelity: " +    str(fidelity)+"\n")
+	fidelity = dm.fidelity_max(rho_recon)
+	print("Fidelity: " + str(fidelity)+"\n")
 
-	r=dm.rho_max_likelihood(np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]),
-								["HH","HV","VV","VH","RH","RV","DV","DH","DR","DD","RD","HD","VD","VL","HL","RL"])
+	r = dm.rho_max_likelihood(np.array([34749, 324, 35805, 444, 16324, 17521, 13441, 16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]),
+								["HH", "HV", "VV", "VH", "RH", "RV", "DV", "DH", "DR", "DD", "RD", "HD", "VD", "VL", "HL", "RL"])
 	print(dm.fidelity_max(r))
 	eigValues, eigVecors = np.linalg.eig(r)
-	print("Eigen-values: " + str(np.around(eigValues,decimals=round_digits))+"\n")
+	print("Eigen-values: " + str(np.around(eigValues, decimals=round_digits))+"\n")
 
 	#Calculate Error
 	fidelity    	= dm.fidelity_max(rho_recon)
@@ -836,14 +955,14 @@ if __name__ == "__main__":
 	#Compute errors
 	err = Errorize(basis, cnts)
 	#t0=time.time()
-	err.multiprocessing_simulate(n_cycles_per_core  = 10, nbr_of_cores = 2)
+	err.multiprocessing_simulate(n_cycles_per_core=10, nbr_of_cores=2)
 
 	rho_err = err.rho_max_likelihood()
 
-	print("Rho Max Likelhood: \n"               + str(np.around(rho_recon, decimals =round_digits)) + "\n")
-	print("and its error: \n"                   + str(np.around(rho_err, decimals =round_digits)) + "\n")
+	print("Rho Max Likelhood: \n"               + str(np.around(rho_recon, decimals=round_digits)) + "\n")
+	print("and its error: \n"                   + str(np.around(rho_err, decimals=round_digits)) + "\n")
 
-	fid_std = np.around(err.fidelity_max(),decimals=5)
+	fid_std = np.around(err.fidelity_max(), decimals=5)
 	con_std = np.around(err.concurrence(), decimals=5)
 	pur_std = np.around(err.purity(), decimals=5)
 	ent_std = np.around(err.entropy_neumann(), decimals=5)
